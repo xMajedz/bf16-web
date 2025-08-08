@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>BF16</title>
+	<link rel="stylesheet" href="./style.css">
+	<script type="application/javascript" src="./p5.min.js"></script>
+	<script type="application/javascript" src="./bf16.js"></script>
+</head>
+<body>
+	<script type="application/javascript">new bf16()</script>
+	<div id="BF16-Main">
+		<label>BF16</label>
+		<canvas id="BF16-Renderer" width="512" height="512"></canvas>
+	</div>
+	<div id="BF16-Control">
+		<label>Program</label>
+		<!-- +[.>+<->] -->
+		<input  type="text"    id="program"    value="+[.>+]"/>
+		<input  type="button"  id="runProgram" value="run">
+	</div>
+</body>
+</html>

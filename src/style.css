@@ -1,0 +1,23 @@
+body
+{
+	background: black;
+	color: white;
+}
+
+#BF16-Main
+{
+	display: flex;
+	flex-direction: column;
+	text-align: center;
+	align-items: center;
+}
+
+#BF16-Renderer
+{
+	border: 1px solid white;
+}
+
+#BF16-Control
+{
+	display: flex;
+}
