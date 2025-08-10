@@ -1,16 +1,15 @@
 let instance = {}
 
-const memory = new WebAssembly.Memory({initial: 512})
+const memory = new WebAssembly.Memory({initial: 1024})
+
 const strlen = mem_offset => {
 	let offset = 0 
 	const view = new DataView(memory.buffer, mem_offset)
-	while (view.getUint8(offset) != 0) offset += 1;
-	return offset
-
+	while (view.getUint8(offset++) != 0)
+		if (view.getUint8(offset) == 0) return offset;
 }
 
 const toString = mem_offset => {
-	console.log(new Uint8Array(memory.buffer, mem_offset, strlen(mem_offset)))
 	return new TextDecoder("utf-8").decode(new Uint8Array(memory.buffer, mem_offset, strlen(mem_offset)))
 }
 
@@ -37,9 +36,7 @@ const p5Imp = {
 		circle: (x, y, d) => instance.circle(x, y, d),
 		rect: (x, y, w, h) => instance.rect(x, y, w, h),
 		deltaTime: () => 0.001*instance.deltaTime,
-		logjs: mem_offset => {
-			console.log(mem_offset.toString(16).replace(/^/, "0x"), toString(mem_offset))
-		}
+		logjs: mem_offset => console.log(toString(mem_offset)),
 	}
 }
 
@@ -52,7 +49,6 @@ class bf16
 
 	async start() {
 		const {instance: wasm} = await WebAssembly.instantiateStreaming(fetch("./bf16.wasm"), p5Imp);
-		console.log(wasm)
 		const {preload, setup, draw, runProgram} = wasm.exports
 		const sketch = pInst => {
 			pInst.preload = preload

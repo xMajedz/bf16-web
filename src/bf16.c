@@ -79,8 +79,6 @@ void runProgram(const char* program, uint32_t length)
 
 	uint32_t balance = 0;
 
-	logjs(program);
-
 	for (uint32_t i = 0; i < length; i += 1)
 	{
 		if (validate[program[i]]) {
@@ -92,15 +90,15 @@ void runProgram(const char* program, uint32_t length)
 					l.content[l.count - 1] = program[i];
 				}
 
-				if (program[i] == '[') {
+				if (program[i] != '[' && program[i] != ']') {
+					l.content[l.count] = 0;
+				} else if (program[i] == '[') {
 					jmp = 1;
 					balance += 1;
 				} else if (program[i] == ']') {
 					jmp = 0;
 					balance -= 1;
 					l.content[l.count] = jmpsz;
-				} else {
-					l.content[l.count] = 0;
 				}
 
 				if (jmp) jmpsz += 2;
@@ -111,6 +109,7 @@ void runProgram(const char* program, uint32_t length)
 	}
 
 	if (0 != balance) logjs("Unbalanced loop");
+	logjs(program);
 }
 
 void preload() 
