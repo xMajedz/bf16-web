@@ -2,35 +2,27 @@
 
 #define WINDOW_SIZE 512
 #define PIXEL_SCALE (WINDOW_SIZE / 16)
-#define MEMORY_SIZE 30000
-
-uint8_t memory[MEMORY_SIZE];
-uint32_t address = 0;
-
-uint8_t validate[255] = { 0 };
 
 void logjs(const char* msg);
 
-typedef struct lexer_op
-{
-	struct lexer_op* jmp;
-	uint32_t pos;
-	uint8_t op;
-} lexer_op;
+uint8_t validate[255] = { 0 };
 
 typedef struct
 {
-	uint8_t* content;
-	uint32_t pos;
-	uint32_t op_count;
+	uint16_t* content;
+	uint32_t  count;
+	uint32_t  pos;
 } lexer;
 
 lexer l = { 0 };
-uint8_t content[16777216] = { 0 };
+uint16_t content[16777216] = { 0 };
+
+uint8_t memory[30000] = { 0 };
+uint32_t address = 0;
 
 void interpretProgram()
 {
-	while (l.pos < l.op_count)
+	while (l.pos < l.count)
 	{
 		switch(l.content[l.pos++])
 		{
@@ -74,30 +66,30 @@ void interpretProgram()
 
 void runProgram(const char* program, uint32_t length)
 {
-	logjs(program);
-
-	address = 0;
 	for (int i = 0; i < 256; i += 1) memory[i] = 0;
 
+	address = 0;
+
 	l.pos = 0;
-	l.op_count = 1;
+	l.count = 1;
 	l.content[0] = 0;
 
 	uint32_t jmp = 0;
 	uint32_t jmpsz = 0;
 
 	uint32_t balance = 0;
-	uint32_t i = 0;
 
-	while (i < length)
+	logjs(program);
+
+	for (uint32_t i = 0; i < length; i += 1)
 	{
 		if (validate[program[i]]) {
-			if (l.content[l.op_count - 1] != program[i]) {
-				if (0 < l.content[l.op_count - 1]) {
-					l.content[++l.op_count] = program[i];
-					l.op_count++;
+			if (l.content[l.count - 1] != program[i]) {
+				if (0 < l.content[l.count - 1]) {
+					l.content[++l.count] = program[i];
+					l.count++;
 				} else {
-					l.content[l.op_count - 1] = program[i];
+					l.content[l.count - 1] = program[i];
 				}
 
 				if (program[i] == '[') {
@@ -106,17 +98,16 @@ void runProgram(const char* program, uint32_t length)
 				} else if (program[i] == ']') {
 					jmp = 0;
 					balance -= 1;
-					l.content[l.op_count] = jmpsz;
+					l.content[l.count] = jmpsz;
 				} else {
-					l.content[l.op_count] = 0;
+					l.content[l.count] = 0;
 				}
 
 				if (jmp) jmpsz += 2;
 			}
 
-			l.content[l.op_count] += 1;
+			l.content[l.count] += 1;
 		}
-		i++;
 	}
 
 	if (0 != balance) logjs("Unbalanced loop");

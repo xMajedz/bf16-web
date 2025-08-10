@@ -1,7 +1,6 @@
-
 let instance = {}
 
-const memory = new WebAssembly.Memory({initial: 4096})
+const memory = new WebAssembly.Memory({initial: 512})
 const strlen = mem_offset => {
 	let offset = 0 
 	const view = new DataView(memory.buffer, mem_offset)
@@ -53,6 +52,7 @@ class bf16
 
 	async start() {
 		const {instance: wasm} = await WebAssembly.instantiateStreaming(fetch("./bf16.wasm"), p5Imp);
+		console.log(wasm)
 		const {preload, setup, draw, runProgram} = wasm.exports
 		const sketch = pInst => {
 			pInst.preload = preload
