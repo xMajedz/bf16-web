@@ -13,11 +13,6 @@ class p5jsc
 		this.sketchName = this.sketchName || "./sketch.wasm";
 	}
 	
-	ready(fn)
-	{
-		fn()
-	}
-
 	sketch(pInst)
 	{
 		pInst.preload = this.exports.preload

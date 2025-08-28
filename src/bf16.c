@@ -4,6 +4,7 @@
 #define PIXEL_SCALE (WINDOW_SIZE / 16)
 
 void logjs(const char* msg);
+uint32_t grayscale();
 
 uint8_t validate[255] = { 0 };
 
@@ -34,7 +35,6 @@ void interpretProgram()
 			break;
 		case ']':
 			if (0 != memory[address]) {
-				//for (l.content[l.pos] != '[') l.pos--;
 				l.pos -= l.content[l.pos++];
 			} else {
 				l.pos++;
@@ -42,7 +42,6 @@ void interpretProgram()
 			break;
 		case '[':
 			if (0 == memory[address]) {
-				//for (l.content[l.pos] != ']') l.pos++;
 				l.pos += l.content[l.pos++];
 			} else {
 				l.pos++;
@@ -74,11 +73,6 @@ void runProgram(const char* program, uint32_t length)
 	l.count = 1;
 	l.content[0] = 0;
 
-	uint32_t jmp = 0;
-	uint32_t jmpsz = 0;
-
-	uint32_t balance = 0;
-
 	for (uint32_t i = 0; i < length; i += 1)
 	{
 		if (validate[program[i]]) {
@@ -93,22 +87,37 @@ void runProgram(const char* program, uint32_t length)
 				if (program[i] != '[' && program[i] != ']') {
 					l.content[l.count] = 0;
 				} else if (program[i] == '[') {
-					jmp = 1;
-					balance += 1;
+					/*
+					 * [(?)
+					 */
 				} else if (program[i] == ']') {
-					jmp = 0;
-					balance -= 1;
-					l.content[l.count] = jmpsz;
-				}
+					/*
+					 * ](jmpsz)
+					 * [(jmpsz)
+					 */
+					int balance = 1;
 
-				if (jmp) jmpsz += 2;
+					l.pos = l.count - 1;
+
+					while (l.pos > 0 && balance > 0)
+					{
+						l.pos -= 2;
+						if (l.content[l.pos] == '[') balance -= 1;
+						if (l.content[l.pos] == ']') balance += 1;
+					}
+
+					uint32_t jmpsz = l.count - l.pos;
+					l.content[l.count] = jmpsz;
+					l.content[l.pos + 1] = jmpsz;
+				}
 			}
 
-			l.content[l.count] += 1;
+			if (program[i] != '[' && program[i] != ']') l.content[l.count] += 1;
 		}
 	}
 
-	if (0 != balance) logjs("Unbalanced loop");
+	l.pos = 0;
+
 	logjs(program);
 }
 
@@ -138,10 +147,16 @@ void draw()
 	noStroke();
 	for (int i = 0; i < 256; i += 1) {
 		uint8_t color = memory[i];
-		uint8_t r = (color & 0xE0) >> 5;
-      		uint8_t g = (color & 0x1C) >> 2;
-      		uint8_t b = (color & 0x03);
-		fillrgb((r * 255) / 7, (g * 255) / 7, (b * 255) / 3);
+
+		if (grayscale()) {
+			fill(color);
+		} else {
+			uint8_t r = (color & 0xE0) >> 5;
+      			uint8_t g = (color & 0x1C) >> 2;
+      			uint8_t b = (color & 0x03);
+			fillrgb((r * 255) / 7, (g * 255) / 7, (b * 255) / 3);
+		}
+
 		rect((i % 16) * PIXEL_SCALE, (i / 16) * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE);
 	}
 }
