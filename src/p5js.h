@@ -16,3 +16,4 @@ void circle(uint32_t x, uint32_t y, uint32_t d);
 void rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
 float deltaTime();
+uint8_t key();

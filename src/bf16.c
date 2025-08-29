@@ -10,6 +10,13 @@ uint8_t validate[255] = { 0 };
 
 typedef struct
 {
+	void (*log)(const char* fmt, ...);
+} console_t;
+
+console_t console;
+
+typedef struct
+{
 	uint16_t* content;
 	uint32_t  count;
 	uint32_t  pos;
@@ -20,6 +27,8 @@ uint16_t content[16777216] = { 0 };
 
 uint8_t memory[30000] = { 0 };
 uint32_t address = 0;
+
+uint8_t keystate[255] = { 0 };
 
 void interpretProgram()
 {
@@ -32,6 +41,22 @@ void interpretProgram()
 			return;
 		case ',':
 			l.pos++;
+			uint8_t k = 0;
+
+			/*
+			if (keystate[SDL_SCANCODE_Z]) key |= 0x80;
+		        if (keystate[SDL_SCANCODE_X]) key |= 0x40;
+		        if (keystate[SDL_SCANCODE_RETURN]) key |= 0x20;
+		        if (keystate[SDL_SCANCODE_SPACE]) key |= 0x10;
+			*/
+		        if (keystate['w']) k |= 0x08;
+		        if (keystate['s']) k |= 0x04;
+		        if (keystate['a']) k |= 0x02;
+		        if (keystate['d']) k |= 0x01;
+
+			console.log("%d",  k);
+
+			memory[address] = k;
 			break;
 		case ']':
 			if (0 != memory[address]) {
@@ -87,14 +112,7 @@ void runProgram(const char* program, uint32_t length)
 				if (program[i] != '[' && program[i] != ']') {
 					l.content[l.count] = 0;
 				} else if (program[i] == '[') {
-					/*
-					 * [(?)
-					 */
 				} else if (program[i] == ']') {
-					/*
-					 * ](jmpsz)
-					 * [(jmpsz)
-					 */
 					int balance = 1;
 
 					l.pos = l.count - 1;
@@ -106,7 +124,7 @@ void runProgram(const char* program, uint32_t length)
 						if (l.content[l.pos] == ']') balance += 1;
 					}
 
-					uint32_t jmpsz = l.count - l.pos + 1;
+					uint32_t jmpsz = l.count - (l.pos + 1);
 					l.content[l.count] = jmpsz;
 					l.content[l.pos + 1] = jmpsz;
 				}
@@ -121,26 +139,24 @@ void runProgram(const char* program, uint32_t length)
 
 void preload() 
 {
-	validate['.'] = 1;
-	validate[','] = 1;
-	validate[']'] = 1;
-	validate['['] = 1;
-	validate['+'] = 1;
-	validate['-'] = 1;
-	validate['>'] = 1;
-	validate['<'] = 1;
+	uint8_t valid[] = { '.', ',', ']', '[', '+', '-', '>', '<', 0 };
+	for (uint32_t i = 0; valid[i] != 0; i += 1) validate[valid[i]] = 1;
 
 	l.content = content;
 }
 
 void setup() 
 {
+	console.log = println;
 	createCanvas(WINDOW_SIZE, WINDOW_SIZE, P2D);
 }
 
 void draw()
 {
 	interpretProgram();
+
+	uint8_t keys[] = { 'w', 'a', 's', 'd', 0 };
+	for (int i = 0; keys[i] != 0; i += 1) keystate[keys[i]] = 0;
 
 	noStroke();
 	for (int i = 0; i < 256; i += 1) {
@@ -157,4 +173,9 @@ void draw()
 
 		rect((i % 16) * PIXEL_SCALE, (i / 16) * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE);
 	}
+}
+
+void keyPressed()
+{
+	keystate[key()] = 1;
 }

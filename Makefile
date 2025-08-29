@@ -6,6 +6,7 @@ LD_FLAGS+= -Wl,--import-memory
 LD_FLAGS+= -Wl,--export=preload
 LD_FLAGS+= -Wl,--export=setup
 LD_FLAGS+= -Wl,--export=draw
+LD_FLAGS+= -Wl,--export=keyPressed
 LD_FLAGS+= -Wl,--export=runProgram
 
 bf16.wasm: src/bf16.c

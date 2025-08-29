@@ -18,6 +18,7 @@ class p5jsc
 		pInst.preload = this.exports.preload
 		pInst.setup = this.exports.setup
 		pInst.draw = this.exports.draw
+		pInst.keyPressed = this.exports.keyPressed
 
 		this.instance = pInst
 	}
@@ -81,5 +82,10 @@ class p5jsc
 	deltaTime()
 	{
 		return this.instance.deltaTime * 0.001
+	}
+
+	key()
+	{
+		return this.instance.key.charCodeAt()
 	}
 }
