@@ -3,7 +3,7 @@
 #define WINDOW_SIZE 512
 #define PIXEL_SCALE (WINDOW_SIZE / 16)
 
-void logjs(const char* msg);
+void println(const char* fmt, ...);
 uint32_t grayscale();
 
 uint8_t validate[255] = { 0 };
@@ -106,7 +106,7 @@ void runProgram(const char* program, uint32_t length)
 						if (l.content[l.pos] == ']') balance += 1;
 					}
 
-					uint32_t jmpsz = l.count - l.pos;
+					uint32_t jmpsz = l.count - l.pos + 1;
 					l.content[l.count] = jmpsz;
 					l.content[l.pos + 1] = jmpsz;
 				}
@@ -117,8 +117,6 @@ void runProgram(const char* program, uint32_t length)
 	}
 
 	l.pos = 0;
-
-	logjs(program);
 }
 
 void preload() 

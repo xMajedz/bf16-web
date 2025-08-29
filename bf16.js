@@ -21,7 +21,7 @@ class CString
 			this.#m_size = source.length
 			const bytes = new Uint8Array(this.#m_size + 1);
 			bytes.set(new TextEncoder().encode(source));
-			for (let i = 0; i < this.#m_size; i += 1) view.setUint8(i, bytes[i])
+			for (let i = 0; i < this.#m_size + 1; i += 1) view.setUint8(i, bytes[i])
 		}
 	}
 
@@ -55,14 +55,6 @@ class bf16 extends p5jsc
 		super()
 
 		this.memory = new WebAssembly.Memory({initial: 1024})
-
-		//this.program = "+[.>+<->]"
-		//+(128)[.>+(128)<-(128)>]
-		this.program = "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[.>++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++<-------------------------------------------------------------------------------------------------------------------------------->]"
-
-		//this.program = "+[.>+]"
-		//+(128)[.>+(128)]
-		this.program = "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[.>++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++]"
 	}
 
 	grayscale()
@@ -70,10 +62,24 @@ class bf16 extends p5jsc
 		return 0 + document.getElementById("grayscale").checked
 	}
 
-	logjs(cstring)
+	println(fmt, args)
 	{
-		console.log(new Uint8Array(this.memory.buffer, cstring))
-		console.log(new CString(cstring, this.memory.buffer).toString())
+		let res = new CString(fmt, this.memory.buffer).toString()
+
+		for (let offset = args ;; offset += 4)
+		{
+			const i = new Uint32Array(this.memory.buffer, offset, 1)[0]
+
+			if (new RegExp("%s").test(res)) {
+				res = res.replace(new RegExp("%s"), new CString(i, this.memory.buffer).toString())
+			} else if (new RegExp("%d").test(res)) {
+				res = res.replace(new RegExp("%d"), i)
+			} else {
+				break
+			}
+		}
+
+		console.log(res)
 	}
 
 	run()
@@ -82,8 +88,13 @@ class bf16 extends p5jsc
 		this.exports.runProgram(cstring.data(), cstring.size())
 	}
 
-	ready()
+	async ready()
 	{
+		let example = new URLSearchParams(window.location.search).get("example") ?? "fill_canvas"
+		const file = await fetch(`./examples/${example}.bf`)
+		const reader = await file.body.getReader()
+		const content = await reader.read()
+		this.program = new TextDecoder("UTF-8").decode(content.value)
 		document.getElementById("program").value = this.program
 		document.getElementById("runProgram").addEventListener("click", this.run.bind(this))
 		this.run()
