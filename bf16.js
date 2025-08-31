@@ -84,8 +84,23 @@ class bf16 extends p5jsc
 
 	run()
 	{
-		const cstring = new CString(16385, this.memory.buffer, document.getElementById("program").value)
-		this.exports.runProgram(cstring.data(), cstring.size())
+		let cstring;
+		
+		const programField = document.getElementById("program").value
+		console.log(programField)
+
+		if(programField != "") {
+			cstring = new CString(16385, this.memory.buffer, programField)
+			this.exports.runProgram(cstring.data(), cstring.size())
+		}
+
+		if (typeof this.program == "object") {
+			const view = new DataView(this.memory.buffer, 16385)
+			const program = new Uint8Array(this.program.length + 1)
+			program.set(this.program)
+			for (let i = 0; i < program.length; i += 1) view.setUint8(i, program[i])
+			this.exports.runProgram(16385, program.length)
+		}
 	}
 
 	async ready()
@@ -94,8 +109,7 @@ class bf16 extends p5jsc
 		const file = await fetch(`./examples/${example}.bf`)
 		const reader = await file.body.getReader()
 		const content = await reader.read()
-		this.program = new TextDecoder("UTF-8").decode(content.value)
-		document.getElementById("program").value = this.program
+		this.program = content.value
 		document.getElementById("runProgram").addEventListener("click", this.run.bind(this))
 		this.run()
 	}

@@ -9,5 +9,5 @@ LD_FLAGS+= -Wl,--export=draw
 LD_FLAGS+= -Wl,--export=keyPressed
 LD_FLAGS+= -Wl,--export=runProgram
 
-bf16.wasm: src/bf16.c
+bf16.wasm: bf16.c
 	clang --no-standard-libraries --target=wasm32 -I. $(LD_FLAGS) -o $@ $^
