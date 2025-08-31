@@ -87,19 +87,20 @@ class bf16 extends p5jsc
 		let cstring;
 		
 		const programField = document.getElementById("program").value
-		console.log(programField)
 
 		if(programField != "") {
 			cstring = new CString(16385, this.memory.buffer, programField)
 			this.exports.runProgram(cstring.data(), cstring.size())
 		}
 
-		if (typeof this.program == "object") {
-			const view = new DataView(this.memory.buffer, 16385)
-			const program = new Uint8Array(this.program.length + 1)
-			program.set(this.program)
-			for (let i = 0; i < program.length; i += 1) view.setUint8(i, program[i])
-			this.exports.runProgram(16385, program.length)
+		if (this.program instanceof Uint8Array) {
+			const view = new DataView(this.memory.buffer, 16385, this.program.length)
+
+			let length = this.program.length;
+			if (this.program[this.program.length - 1] == 10) length--
+
+			for (let i = 0; i < length; i += 1) view.setUint8(i, this.program[i])
+			this.exports.runProgram(16385, length)
 		}
 	}
 
