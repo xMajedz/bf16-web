@@ -90,6 +90,7 @@ class bf16 extends p5jsc
 
 		if(programField != "") {
 			cstring = new CString(16385, this.memory.buffer, programField)
+			this.program = programField
 			this.exports.runProgram(cstring.data(), cstring.size())
 		}
 
