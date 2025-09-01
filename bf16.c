@@ -32,8 +32,6 @@ uint8_t keystate[255] = { 0 };
 
 void interpretProgram()
 {
-	console.log("%d", l.count);
-
 	while (l.pos < l.count)
 	{
 		switch(l.content[l.pos++])
@@ -49,6 +47,8 @@ void interpretProgram()
 		        if (keystate['s']) k |= 0x04;
 		        if (keystate['a']) k |= 0x02;
 		        if (keystate['d']) k |= 0x01;
+
+			console.log("%d", k);
 
 			memory[address] = k;
 			break;
@@ -129,6 +129,8 @@ void runProgram(const char* program, uint32_t length)
 	}
 
 	l.pos = 0;
+
+	console.log("%d", l.count);
 }
 
 void preload() 
