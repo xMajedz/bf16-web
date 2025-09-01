@@ -110,8 +110,33 @@ class bf16 extends p5jsc
 		let example = new URLSearchParams(window.location.search).get("example") ?? "fill_canvas"
 		const file = await fetch(`./examples/${example}.bf`)
 		const reader = await file.body.getReader()
-		const content = await reader.read()
-		this.program = content.value
+
+
+
+		let chunks = []
+		while (true)
+		{
+			const {done, value} = await reader.read()
+
+			if (done) break
+			
+			chunks.push(value)
+		}
+		
+		let new_size = 0
+		for (let i = 0; i < chunks.length; i += 1) {
+			new_size += chunks[i].length
+		}
+
+		const program = new Uint8Array(new_size)
+
+		let offset = 0
+		for (let i = 0; i < chunks.length; i += 1) {
+			program.set(chunks[i], offset)
+			offset += chunks[i].length
+		}
+
+		this.program = program
 		document.getElementById("runProgram").addEventListener("click", this.run.bind(this))
 		this.run()
 	}

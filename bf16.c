@@ -32,6 +32,8 @@ uint8_t keystate[255] = { 0 };
 
 void interpretProgram()
 {
+	console.log("%d", l.count);
+
 	while (l.pos < l.count)
 	{
 		switch(l.content[l.pos++])
@@ -43,18 +45,10 @@ void interpretProgram()
 			l.pos++;
 			uint8_t k = 0;
 
-			/*
-			if (keystate[SDL_SCANCODE_Z]) key |= 0x80;
-		        if (keystate[SDL_SCANCODE_X]) key |= 0x40;
-		        if (keystate[SDL_SCANCODE_RETURN]) key |= 0x20;
-		        if (keystate[SDL_SCANCODE_SPACE]) key |= 0x10;
-			*/
 		        if (keystate['w']) k |= 0x08;
 		        if (keystate['s']) k |= 0x04;
 		        if (keystate['a']) k |= 0x02;
 		        if (keystate['d']) k |= 0x01;
-
-			console.log("%d",  k);
 
 			memory[address] = k;
 			break;
