@@ -56,7 +56,7 @@ class bf16 extends p5jsc
 
 		this.memory = new WebAssembly.Memory({initial: 1024})
 	}
-
+	
 	grayscale()
 	{
 		return 0 + document.getElementById("grayscale").checked

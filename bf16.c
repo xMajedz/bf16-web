@@ -31,7 +31,6 @@ void interpretProgram()
 		{
 		case '.':
 			l.pos++;
-			console.log("%s", ".");
 			return;
 		case ',':
 			l.pos++;
