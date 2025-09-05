@@ -11,13 +11,6 @@ uint8_t validate[255] = { 0 };
 
 typedef struct
 {
-	void (*log)(const char* fmt, ...);
-} console_t;
-
-console_t console;
-
-typedef struct
-{
 	uint16_t* content;
 	uint32_t  count;
 	uint32_t  pos;
@@ -137,7 +130,6 @@ void preload()
 void setup() 
 {
 	createCanvas(WINDOW_SIZE, WINDOW_SIZE, P2D);
-	console.log = println;
 }
 
 void draw()
