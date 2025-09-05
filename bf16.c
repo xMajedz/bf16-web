@@ -3,9 +3,10 @@
 #define WINDOW_SIZE 512
 #define PIXEL_SCALE (WINDOW_SIZE / 16)
 
-void println(const char* fmt, ...);
-uint32_t grayscale();
+uint8_t keys[] = { 'w', 'a', 's', 'd', 0 };
+uint8_t keystate[255] = { 0 };
 
+uint8_t valid[] = { '.', ',', ']', '[', '+', '-', '>', '<', 0 };
 uint8_t validate[255] = { 0 };
 
 typedef struct
@@ -20,15 +21,14 @@ typedef struct
 	uint16_t* content;
 	uint32_t  count;
 	uint32_t  pos;
-} lexer;
+} lexer_t;
 
-lexer l = { 0 };
-uint16_t content[16777216] = { 0 };
+lexer_t l = { 0 }; uint16_t content[16777216] = { 0 };
 
-uint8_t memory[30000] = { 0 };
-uint32_t address = 0;
+uint32_t address = 0; uint8_t memory[30000] = { 0 };
 
-uint8_t keystate[255] = { 0 };
+void println(const char* fmt, ...);
+uint32_t grayscale();
 
 void interpretProgram()
 {
@@ -38,18 +38,15 @@ void interpretProgram()
 		{
 		case '.':
 			l.pos++;
+			console.log("%s", ".");
 			return;
 		case ',':
 			l.pos++;
 			uint8_t k = 0;
-
 		        if (keystate['w']) k |= 0x08;
 		        if (keystate['s']) k |= 0x04;
 		        if (keystate['a']) k |= 0x02;
 		        if (keystate['d']) k |= 0x01;
-
-			console.log("%d", k);
-
 			memory[address] = k;
 			break;
 		case ']':
@@ -129,29 +126,24 @@ void runProgram(const char* program, uint32_t length)
 	}
 
 	l.pos = 0;
-
-	console.log("%d", l.count);
 }
 
 void preload() 
 {
-	uint8_t valid[] = { '.', ',', ']', '[', '+', '-', '>', '<', 0 };
 	for (uint32_t i = 0; valid[i] != 0; i += 1) validate[valid[i]] = 1;
-
 	l.content = content;
 }
 
 void setup() 
 {
-	console.log = println;
 	createCanvas(WINDOW_SIZE, WINDOW_SIZE, P2D);
+	console.log = println;
 }
 
 void draw()
 {
 	interpretProgram();
 
-	uint8_t keys[] = { 'w', 'a', 's', 'd', 0 };
 	for (int i = 0; keys[i] != 0; i += 1) keystate[keys[i]] = 0;
 
 	noStroke();

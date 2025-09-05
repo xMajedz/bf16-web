@@ -78,6 +78,8 @@ class bf16 extends p5jsc
 				break
 			}
 		}
+		
+		console.log(res)
 	}
 
 	run()
