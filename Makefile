@@ -1,13 +1,20 @@
 CC = gcc
 CFLAGS = -lSDL2 -lm
 
-all: bf16 bf16_grayscale
+DIR=examples@examples
 
-bf16:
-	$(CC) bf16.c -o bf16 $(CFLAGS)
+EMFLAGS=--preload-file $(DIR)
 
-bf16_grayscale:
-	$(CC) bf16_grayscale.c -o bf16_grayscale $(CFLAGS)
+bf16_web: index.html
+
+index.html: bf16_web.c
+	emcc $(CFLAGS) $(EMFLAGS) -o $@ $^
+
+bf16: bf16.c
+	$(CC) $(CFLAGS) -o $@ $^
+
+bf16_grayscale: bf16_grayscale.c
+	$(CC) $(CFLAGS) -o $@ $^ 
 
 clean:
-	rm -f bf16 bf16_grayscale
+	rm -f bf16 bf16_grayscale index.html index.js
