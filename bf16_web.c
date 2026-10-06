@@ -173,7 +173,7 @@ int main (int argc, char *argv[]) {
   }
   */
   
-  const char * filename = "examples/badapple.b";
+  const char * filename = "examples/snake.b";
 
   if (argc > 1) {
     filename = argv[1];

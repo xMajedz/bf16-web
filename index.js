@@ -76,7 +76,7 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: /tmp/tmphu6oy9yb.js
+// include: /tmp/tmpv40apr17.js
 
   if (!Module['expectedDataFileDownloads']) Module['expectedDataFileDownloads'] = 0;
   Module['expectedDataFileDownloads']++;
@@ -204,21 +204,43 @@ Module['FS_createPath']("/", "examples", true, true);
 
   })();
 
-// end include: /tmp/tmphu6oy9yb.js
-// include: /tmp/tmp8nytpj15.js
+// end include: /tmp/tmpv40apr17.js
+// include: /tmp/tmpqo0t46dm.js
 
     // All the pre-js content up to here must remain later on, we need to run
     // it.
     if ((typeof ENVIRONMENT_IS_WASM_WORKER != 'undefined' && ENVIRONMENT_IS_WASM_WORKER) || (typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD) || (typeof ENVIRONMENT_IS_AUDIO_WORKLET != 'undefined' && ENVIRONMENT_IS_AUDIO_WORKLET)) Module['preRun'] = [];
     var necessaryPreJSTasks = Module['preRun'].slice();
-  // end include: /tmp/tmp8nytpj15.js
-// include: /tmp/tmpup74rjnk.js
+  // end include: /tmp/tmpqo0t46dm.js
+// include: /home/bazzite/.local/bin/emsdk/upstream/emscripten/src/emrun_prejs.js
+/**
+ * @license
+ * Copyright 2013 The Emscripten Authors
+ * SPDX-License-Identifier: MIT
+ *
+ * This file gets implicitly injected as a `--pre-js` file when
+ * emcc is run with `--emrun`
+ */
+
+// Route URL GET parameters to argc+argv
+if (globalThis.window) {
+  Module['arguments'] = window.location.search.slice(1).trim().split('&');
+  for (let i = 0; i < Module['arguments'].length; ++i) {
+    Module['arguments'][i] = decodeURI(Module['arguments'][i]);
+  }
+  // If no args were passed arguments = [''], in which case kill the single empty string.
+  if (!Module['arguments'][0]) {
+    Module['arguments'] = [];
+  }
+}
+// end include: /home/bazzite/.local/bin/emsdk/upstream/emscripten/src/emrun_prejs.js
+// include: /tmp/tmpgc016r18.js
 
     if (!Module['preRun']) throw 'Module.preRun should exist because file support used it; did a pre-js delete it?';
     necessaryPreJSTasks.forEach((task) => {
       if (Module['preRun'].indexOf(task) < 0) throw 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?';
     });
-  // end include: /tmp/tmpup74rjnk.js
+  // end include: /tmp/tmpgc016r18.js
 
 
 var programArgs = [];
@@ -631,6 +653,8 @@ function checkStackCookie() {
 
 var runtimeInitialized = false;
 
+var runtimeExited = false;
+
 
 
 function updateMemoryViews() {
@@ -687,6 +711,22 @@ TTY.init();
   checkStackCookie();
 }
 
+var runtimeExiting = false;
+
+function exitRuntime() {
+  assert(!runtimeExited);
+  assert(!runtimeExiting, 'Re-entrant call to exitRuntime()! This can happen if an atexit() registered callback throws an exception.');
+  runtimeExiting = true;
+  checkStackCookie();
+  ___funcs_on_exit(); // Native atexit() functions
+  // Begin ATEXITS hooks
+  callRuntimeCallbacks(onExits);
+FS.quit();
+TTY.shutdown();
+  // End ATEXITS hooks
+  runtimeExited = true;
+}
+
 function postRun() {
   checkStackCookie();
 
@@ -741,6 +781,7 @@ function createExportWrapper(name, func, nargs) {
   assert(func);
   return (...args) => {
     assert(runtimeInitialized, `native function \`${name}\` called before runtime initialization`);
+    assert(!runtimeExited, `native function \`${name}\` called after runtime exit (use NO_EXIT_RUNTIME to keep it alive after main() exits)`);
     // Only assert for too many arguments. Too few can be valid since the missing arguments will be zero filled.
     assert(args.length <= nargs, `native function \`${name}\` called with ${args.length} args but expects ${nargs}`);
     return func(...args);
@@ -915,6 +956,9 @@ async function createWasm() {
         callbacks.shift()(Module);
       }
     };
+  var onExits = [];
+  var addOnExit = (cb) => onExits.push(cb);
+
   var onPostRuns = [];
   var addOnPostRun = (cb) => onPostRuns.push(cb);
 
@@ -922,7 +966,7 @@ async function createWasm() {
   var addOnPreRun = (cb) => onPreRuns.push(cb);
 
 
-  var noExitRuntime = true;
+  var noExitRuntime = false;
 
   function ptrToString(ptr) {
       assert(typeof ptr === 'number', `ptrToString expects a number, got ${typeof ptr}`);
@@ -4105,7 +4149,9 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
   var exitJS = (status, implicit) => {
       EXITSTATUS = status;
   
-      checkUnflushedContent();
+      if (!keepRuntimeAlive()) {
+        exitRuntime();
+      }
   
       // if exit() was called explicitly, warn the user if the runtime isn't actually being shut down
       if (keepRuntimeAlive() && !implicit) {
@@ -4119,6 +4165,9 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
   
   
   var maybeExit = () => {
+      if (runtimeExited) {
+        return;
+      }
       if (!keepRuntimeAlive()) {
         try {
           _exit(EXITSTATUS);
@@ -4128,7 +4177,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
       }
     };
   var callUserCallback = (func) => {
-      if (ABORT) {
+      if (runtimeExited || ABORT) {
         err('user callback triggered after runtime exited or application aborted.  Ignoring.');
         return;
       }
@@ -4147,11 +4196,20 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
              ;
     }
   
+  
+  var runtimeKeepalivePush = () => {
+      runtimeKeepaliveCounter += 1;
+    };
+  
+  var runtimeKeepalivePop = () => {
+      assert(runtimeKeepaliveCounter > 0);
+      runtimeKeepaliveCounter -= 1;
+    };
   /** @param {number=} timeout */
   var safeSetTimeout = (func, timeout) => {
-      
+      runtimeKeepalivePush();
       return setTimeout(() => {
-        
+        runtimeKeepalivePop();
         callUserCallback(func);
       }, timeout);
     };
@@ -5281,6 +5339,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
   
   
   
+  
     /**
    * @param {number=} arg
    * @param {boolean=} noSetTiming
@@ -5293,7 +5352,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
       var thisMainLoopId = MainLoop.currentlyRunningMainloop;
       function checkIsRunning() {
         if (thisMainLoopId < MainLoop.currentlyRunningMainloop) {
-          
+          runtimeKeepalivePop();
           maybeExit();
           return false;
         }
@@ -5454,6 +5513,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
         }
       },
   };
+  
   var _emscripten_set_main_loop_timing = (mode, value) => {
       MainLoop.timingMode = mode;
       MainLoop.timingValue = value;
@@ -5464,7 +5524,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
       }
   
       if (!MainLoop.running) {
-        
+        runtimeKeepalivePush();
         MainLoop.running = true;
       }
       if (mode == 0) {
@@ -5616,14 +5676,18 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
     };
 
 
-  var onExits = [];
-  var addOnExit = (cb) => onExits.push(cb);
   var JSEvents = {
   removeAllEventListeners() {
         while (JSEvents.eventHandlers.length) {
           JSEvents._removeHandler(JSEvents.eventHandlers.length - 1);
         }
         JSEvents.deferredCalls = [];
+      },
+  registerRemoveEventListeners() {
+        if (!JSEvents.removeEventListenersRegistered) {
+          addOnExit(JSEvents.removeAllEventListeners);
+          JSEvents.removeEventListenersRegistered = true;
+        }
       },
   inEventHandler:0,
   deferredCalls:[],
@@ -5714,6 +5778,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
                                                eventHandler.eventListenerFunc,
                                                eventHandler.useCapture);
           JSEvents.eventHandlers.push(eventHandler);
+          JSEvents.registerRemoveEventListeners();
         } else {
           for (var i = 0; i < JSEvents.eventHandlers.length; ++i) {
             if (JSEvents.eventHandlers[i].target == eventHandler.target
@@ -6037,9 +6102,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
       noExitRuntime = false;
       runtimeKeepaliveCounter = 0;
     };
-  
   var _emscripten_force_exit = (status) => {
-      warnOnce('emscripten_force_exit cannot actually shut down the runtime, as the build does not have EXIT_RUNTIME set');
       __emscripten_runtime_keepalive_clear();
       _exit(status);
     };
@@ -8649,6 +8712,7 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
 
 
 
+
   
   
   
@@ -8690,6 +8754,8 @@ var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
   var FS_createDevice = (...args) => FS.createDevice(...args);
 
 
+
+  var createContext = Browser.createContext;
 
   FS.createPreloadedFile = FS_createPreloadedFile;
   FS.preloadFile = FS_preloadFile;
@@ -8762,6 +8828,7 @@ if (Module['printErr']) err = Module['printErr'];
   Module['addRunDependency'] = addRunDependency;
   Module['removeRunDependency'] = removeRunDependency;
   Module['requestFullscreen'] = requestFullscreen;
+  Module['createContext'] = createContext;
   Module['FS_preloadFile'] = FS_preloadFile;
   Module['FS_unlink'] = FS_unlink;
   Module['FS_createPath'] = FS_createPath;
@@ -8790,8 +8857,6 @@ if (Module['printErr']) err = Module['printErr'];
   'readSockaddr',
   'writeSockaddr',
   'getDynCaller',
-  'runtimeKeepalivePush',
-  'runtimeKeepalivePop',
   'asmjsMangle',
   'alignMemory',
   'HandleAllocator',
@@ -8924,6 +8989,8 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'dynCall',
   'handleException',
   'keepRuntimeAlive',
+  'runtimeKeepalivePush',
+  'runtimeKeepalivePop',
   'callUserCallback',
   'maybeExit',
   'asyncLoad',
@@ -9001,7 +9068,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'Browser',
   'setCanvasSize',
   'getUserMedia',
-  'createContext',
   'getPreloadedImageData__data',
   'wget',
   'MONTH_DAYS_REGULAR',
@@ -9155,8 +9221,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'EGL',
   'GLEW',
   'IDBStore',
-  'SDL',
-  'SDL_gfx',
   'print',
   'printErr',
   'jstoi_s',
@@ -9221,6 +9285,7 @@ var ASM_CONSTS = {
 var _malloc = makeInvalidEarlyAccess('_malloc');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
+var ___funcs_on_exit = makeInvalidEarlyAccess('___funcs_on_exit');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
 var _emscripten_stack_get_base = makeInvalidEarlyAccess('_emscripten_stack_get_base');
@@ -9238,6 +9303,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['malloc'] != 'undefined', 'missing Wasm export: malloc');
   assert(typeof wasmExports['strerror'] != 'undefined', 'missing Wasm export: strerror');
   assert(typeof wasmExports['__main_argc_argv'] != 'undefined', 'missing Wasm export: __main_argc_argv');
+  assert(typeof wasmExports['__funcs_on_exit'] != 'undefined', 'missing Wasm export: __funcs_on_exit');
   assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
   assert(typeof wasmExports['emscripten_stack_get_end'] != 'undefined', 'missing Wasm export: emscripten_stack_get_end');
   assert(typeof wasmExports['emscripten_stack_get_base'] != 'undefined', 'missing Wasm export: emscripten_stack_get_base');
@@ -9251,6 +9317,7 @@ function assignWasmExports(wasmExports) {
   _malloc = createExportWrapper('malloc', wasmExports['malloc'], 1);
   _strerror = createExportWrapper('strerror', wasmExports['strerror'], 1);
   _main = Module['_main'] = createExportWrapper('__main_argc_argv', wasmExports['__main_argc_argv'], 2);
+  ___funcs_on_exit = createExportWrapper('__funcs_on_exit', wasmExports['__funcs_on_exit'], 0);
   _fflush = createExportWrapper('fflush', wasmExports['fflush'], 1);
   _emscripten_stack_get_end = wasmExports['emscripten_stack_get_end'];
   _emscripten_stack_get_base = wasmExports['emscripten_stack_get_base'];
@@ -9830,45 +9897,6 @@ async function run(args = programArgs) {
   postRun();
 }
 
-function checkUnflushedContent() {
-  // Compiler settings do not allow exiting the runtime, so flushing
-  // the streams is not possible. but in ASSERTIONS mode we check
-  // if there was something to flush, and if so tell the user they
-  // should request that the runtime be exitable.
-  // Normally we would not even include flush() at all, but in ASSERTIONS
-  // builds we do so just for this check, and here we see if there is any
-  // content to flush, that is, we check if there would have been
-  // something a non-ASSERTIONS build would have not seen.
-  // How we flush the streams depends on whether we are in SYSCALLS_REQUIRE_FILESYSTEM=0
-  // mode (which has its own special function for this; otherwise, all
-  // the code is inside libc)
-  var oldOut = out;
-  var oldErr = err;
-  var has = false;
-  out = err = (x) => {
-    has = true;
-  }
-  try { // it doesn't matter if it fails
-    _fflush(0);
-    // also flush in the JS FS layer
-    for (var name of ['stdout', 'stderr']) {
-      var info = FS.analyzePath('/dev/' + name);
-      if (!info) return;
-      var stream = info.object;
-      var rdev = stream.rdev;
-      var tty = TTY.ttys[rdev];
-      if (tty?.output?.length) {
-        has = true;
-      }
-    }
-  } catch(e) {}
-  out = oldOut;
-  err = oldErr;
-  if (has) {
-    warnOnce('stdio streams had content in them that was not flushed. you should set EXIT_RUNTIME to 1 (see the Emscripten FAQ), or make sure to emit a newline when you printf etc.');
-  }
-}
-
 var wasmExports;
 
 // With async instantation wasmExports is assigned asynchronously when the
@@ -9876,4 +9904,105 @@ var wasmExports;
 createWasm().then(() => run());
 
 // end include: postamble.js
+
+// include: /home/bazzite/.local/bin/emsdk/upstream/emscripten/src/emrun_postjs.js
+/**
+ * @license
+ * Copyright 2013 The Emscripten Authors
+ * SPDX-License-Identifier: MIT
+ *
+ * This file gets implicitly injected as a `--post-js` file when
+ * emcc is run with `--emrun`
+ */
+
+// POSTs the given binary data represented as a (typed) array data back to the
+// emrun-based web server.
+// To use from C code, call e.g:
+//   EM_ASM({emrun_file_dump("file.dat", HEAPU8.subarray($0, $0 + $1));}, my_data_pointer, my_data_pointer_byte_length);
+// Note: this functions does nothing by default but gets redefined below
+// in `emrun_register_handlers` when emrun is active, along with `out` and
+// `err`.
+var emrun_file_dump = (filename, data) => {};
+
+if (globalThis.window && globalThis.document && (typeof ENVIRONMENT_IS_PTHREAD == 'undefined' || !ENVIRONMENT_IS_PTHREAD)) {
+  var emrun_register_handlers = () => {
+    // When C code exit()s, we may still have remaining stdout and stderr
+    // messages in flight. In that case, we can't close the browser until all
+    // those XHRs have finished, so the following state variables track that all
+    // communication is done, after which we can close.
+    var emrun_num_post_messages_in_flight = 0;
+    var emrun_should_close_itself = false;
+    var postExit = (msg) => {
+      var http = new XMLHttpRequest();
+      // Don't do this immediately, this may race with the notification about
+      // the return code reaching the server. Send a *sync* xhr so that we know
+      // for sure that the server has gotten the return code before we continue.
+      http.open("POST", "stdio.html", false);
+      http.send(msg);
+      try {
+        // Try closing the current browser window, since it exit()ed itself.
+        // This can shut down the browser process and then emrun does not need
+        // to kill the whole browser process.
+        window.close();
+      } catch(e) {}
+    };
+    var post = (url, msg) => {
+      var http = new XMLHttpRequest();
+      ++emrun_num_post_messages_in_flight;
+      http.onreadystatechange = () => {
+        if (http.readyState == 4 /*DONE*/) {
+          if (--emrun_num_post_messages_in_flight == 0 && emrun_should_close_itself) {
+            postExit('^exit^'+EXITSTATUS);
+          }
+        }
+      }
+      http.open("POST", url, true);
+      http.send(msg);
+    };
+    // If the address contains localhost, or we are running the page from port
+    // 6931, we can assume we're running the test runner and should post stdout
+    // logs.
+    if (document.URL.search("localhost") != -1 || document.URL.search(":6931/") != -1) {
+      var emrun_http_sequence_number = 1;
+      var prevPrint = out;
+      var prevErr = err;
+      addOnExit(() => {
+        if (emrun_num_post_messages_in_flight == 0) {
+          postExit('^exit^'+EXITSTATUS);
+        } else {
+          emrun_should_close_itself = true;
+        }
+      });
+      out = (text) => {
+        post('stdio.html', '^out^'+(emrun_http_sequence_number++)+'^'+encodeURIComponent(text));
+        prevPrint(text);
+      };
+      err = (text) => {
+        post('stdio.html', '^err^'+(emrun_http_sequence_number++)+'^'+encodeURIComponent(text));
+        prevErr(text);
+      };
+      emrun_file_dump = (filename, data) => {
+        out(`Dumping out file "${filename}" with ${data.length} bytes of data.`);
+        if (ArrayBuffer.isView(data) && typeof SharedArrayBuffer !== "undefined" && data.buffer instanceof SharedArrayBuffer) {
+          data = new data.constructor(data); // Make a clone of the typed array of the same type, since http.send() does not allow SharedArrayBuffer backing.
+        }
+        post("stdio.html?file=" + filename, data);
+      };
+
+      // Notify emrun web server that this browser has successfully launched the
+      // page. Note that we may need to wait for the server to be ready.
+      var tryToSendPageload = () => {
+        try {
+          post('stdio.html', '^pageload^');
+        } catch (e) {
+          setTimeout(tryToSendPageload, 50);
+        }
+      };
+      tryToSendPageload();
+    }
+  };
+
+  emrun_register_handlers();
+}
+// end include: /home/bazzite/.local/bin/emsdk/upstream/emscripten/src/emrun_postjs.js
 

@@ -3,7 +3,7 @@ CFLAGS = -lSDL2 -lm
 
 DIR=examples@examples
 
-EMFLAGS=--preload-file $(DIR)
+EMFLAGS=-sUSE_SDL=2 --emrun --preload-file $(DIR)
 
 bf16_web: index.html
 
