@@ -1,9 +1,14 @@
-CC = gcc
-CFLAGS = -lSDL2 -lm
+CC=gcc
+CFLAGS=-lSDL2 -lm
 
 DIR=examples@examples
 
-EMFLAGS=-sUSE_SDL=2 --emrun --preload-file $(DIR)
+INITIAL_MEMORY=$(shell expr 128 \* 1024 \* 1024)
+
+EMFLAGS=-sINITIAL_MEMORY=$(INITIAL_MEMORY)\
+	-sUSE_SDL=2\
+	--emrun\
+	--preload-file $(DIR)
 
 bf16_web: index.html
 
